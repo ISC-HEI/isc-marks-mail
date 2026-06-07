@@ -1,0 +1,186 @@
+/* ─────────────────────────────────────────────────────────────
+   Vendored subset of @isc-hei/design (style.css v0.2.0).
+
+   This React app can't consume the package's Vue components, so the
+   ISCHeader is ported to JSX (src/ISCHeader.jsx) and only the CSS it
+   needs is copied here: brand tokens, .isc-mono-label, .isc-header__*,
+   .isc-fab, and the [data-tooltip] popover.
+
+   Deliberately NOT vendored: the package's body/font reset — the rest
+   of the app keeps its own DM Sans body + inline-style theme objects.
+
+   Source of truth: isc-hub/packages/design/style.css
+   ────────────────────────────────────────────────────────────── */
+
+:root {
+  --isc-font-mono: 'Fira Code', ui-monospace, monospace;
+
+  --isc-page-padding-x: 28px;
+
+  --isc-text-primary:   #0a1a2f;
+  --isc-text-muted:     #888;
+
+  --isc-bg-white:       #ffffff;
+
+  --isc-border-default: #ecebe5;
+  --isc-border-strong:  #e5e3da;
+
+  --isc-glass:          rgba(255, 255, 255, 0.72);
+}
+
+/* Dark tokens — driven explicitly by <html data-theme="dark">, which
+   App.jsx syncs to the resolved dark boolean (never left unset). */
+:root[data-theme="dark"] {
+  --isc-text-primary:   #f3f4f6;
+  --isc-text-muted:     #6a6e75;
+
+  --isc-bg-white:       #16161a;
+
+  --isc-border-default: #2a2a2e;
+  --isc-border-strong:  #3a3a40;
+
+  --isc-glass:          rgba(22, 22, 26, 0.72);
+}
+
+/* ─── Mono uppercase label (surtitle kicker) ─── */
+.isc-mono-label {
+  font-family: var(--isc-font-mono);
+  text-transform: uppercase;
+  margin-top: var(--isc-mono-nudge, 2px);
+}
+
+/* ─── ISCHeader ─── */
+.isc-header {
+  background: var(--isc-bg-white);
+  border-bottom: 1px solid var(--isc-border-default);
+}
+
+.isc-header__main {
+  display: flex;
+}
+
+.isc-header__bar {
+  width: 8px;
+  flex-shrink: 0;
+}
+
+.isc-header__inner {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 14px var(--isc-page-padding-x);
+  gap: 22px;
+}
+
+.isc-header__brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.isc-header__full-logo {
+  height: 60px;
+  width: auto;
+  margin-left: -6px;
+}
+
+.isc-header__divider {
+  width: 1px;
+  height: 56px;
+  background: var(--isc-border-strong);
+}
+
+.isc-header__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.isc-header__surtitle {
+  font-size: 0.7rem;
+  letter-spacing: 1.1px;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.isc-header__surtitle a {
+  color: inherit;
+  text-decoration: none;
+}
+.isc-header__surtitle a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.isc-header__surtitle-sep { opacity: 0.45; margin: 0 3px; }
+
+.isc-header__title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--isc-text-primary);
+  letter-spacing: -0.4px;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.isc-header__meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.694rem;
+  color: var(--isc-text-muted);
+  font-family: var(--isc-font-mono);
+}
+
+@media (max-width: 640px) {
+  .isc-header__bar     { width: 6px; }
+  .isc-header__inner   { flex-wrap: wrap; padding: 12px 16px; gap: 14px; }
+  .isc-header__divider { display: none; }
+  .isc-header__title   { font-size: 1.056rem; }
+}
+
+/* ─── FAB (theme toggle lives in the header meta) ─── */
+.isc-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--isc-glass);
+  border: 1px solid var(--isc-border-default);
+  color: var(--isc-text-primary);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  transition: background 0.3s, transform 0.2s, box-shadow 0.3s, border-color 0.2s;
+  flex-shrink: 0;
+}
+.isc-fab:hover  { transform: scale(1.1); box-shadow: 0 4px 16px rgba(0,0,0,0.14); border-color: var(--isc-border-strong); }
+.isc-fab:active { transform: scale(0.95); }
+
+/* ─── Tooltips (attribute-scoped; renders BELOW so it clears the top bar) ─── */
+[data-tooltip] { position: relative; }
+
+[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(40,48,64,0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #f0f1f3;
+  padding: 6px 12px;
+  font-size: 0.833rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  white-space: nowrap;
+  z-index: 300;
+  pointer-events: none;
+  animation: isc-tooltip-in 0.18s ease 0.35s both;
+}
+
+@keyframes isc-tooltip-in { from { opacity:0; transform:translate(-50%,-4px); } to { opacity:1; transform:translate(-50%,0); } }

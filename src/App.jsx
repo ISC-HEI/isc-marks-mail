@@ -1,7 +1,14 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import ISCHeader from "./ISCHeader.jsx";
 
 const LOGO_BLACK = "./ISC_Logo_V3_-_black.svg";
 const LOGO_WHITE = "./ISC_Logo_V3_-_white.svg";
+
+/* Petal accent — Enseignant·es (this is a teacher tool: paste grades → mail) */
+const ACCENT_LIGHT = "#a890c0";
+const ACCENT_DARK = "#7a6090";
+const HUB_HREF = "https://isc-hei.github.io/isc-hub/";
+const TEACHERS_HREF = HUB_HREF + "#/enseignant-es"; // hub's enseignant·es audience page
 
 /* ── table columns — genre first, optional ─────────────────── */
 const COLS = [
@@ -571,6 +578,14 @@ function SendRow({ student, subject, body, module, onSent }) {
 /* ── main app ──────────────────────────────────────────────── */
 export default function App() {
   const [dark, toggleDark] = useDark();
+
+  /* Sync <html data-theme> to the resolved dark boolean so the vendored
+     @isc-hei/design tokens (header surface, borders) track the app theme.
+     Set explicitly to light|dark — never unset — so it can't diverge from
+     the app's manual override via the package's prefers-color-scheme path. */
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  }, [dark]);
   const [rows, setRows] = useState(() =>
     Array.from({ length: INITIAL_ROWS }, EMPTY_ROW)
   );
@@ -657,7 +672,7 @@ export default function App() {
   return (
     <div style={{ ...rootBase, ...theme }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=Fira+Code:wght@400;500;600&family=JetBrains+Mono:wght@400;600;700&display=swap');
         * { box-sizing: border-box; transition: background .3s ease, color .3s ease, border-color .3s ease, box-shadow .3s ease; }
         html, body, #root { background: ${dark ? darkTheme['--bg'] : lightTheme['--bg']}; transition: background .3s ease; }
         input::placeholder, textarea::placeholder { color: var(--muted); opacity: .5; }
@@ -683,69 +698,40 @@ export default function App() {
         />
       )}
 
-      {/* floating theme toggle */}
-      <button
-        onClick={toggleDark}
-        title={dark ? "Mode clair" : "Mode sombre"}
-        style={{
-          position: "fixed",
-          top: 20,
-          right: 20,
-          zIndex: 50,
-          background: "var(--card)",
-          border: "1px solid var(--rule)",
-          borderRadius: "50%",
-          width: 40,
-          height: 40,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--muted)",
-          boxShadow: "0 2px 10px rgba(0,0,0,.15)",
-          transition: "color .15s, background .15s",
-        }}
-      >
-        {dark ? (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        ) : (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        )}
-      </button>
-
-      {/* header */}
-      <div
-        style={{
-          borderBottom: "1px solid var(--rule)",
-          paddingBottom: 10,
-          marginBottom: 24,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 20,
-              fontWeight: 700,
-              letterSpacing: "-.03em",
-            }}
-          >
-            ISC Grade Mailer
-          </h1>
-          <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--muted)" }}>
-            Coller · Vérifier · Envoyer
-          </p>
-        </div>
-        <a href="https://www.hevs.ch/isc" target="_blank" rel="noopener noreferrer">
-          <img
-            src={dark ? LOGO_WHITE : LOGO_BLACK}
-            alt="ISC"
-            style={{ height: 38, opacity: 1, cursor: "pointer" }}
-          />
-        </a>
+      {/* header — ported @isc-hei/design ISCHeader, full-bleed to the column edges */}
+      <div style={{ margin: "-24px -18px 24px" }}>
+        <ISCHeader
+          accentLight={ACCENT_LIGHT}
+          accentDark={ACCENT_DARK}
+          surtitle={
+            <>
+              <a href={HUB_HREF} target="_blank" rel="noopener noreferrer">ISC Hub</a>
+              <span className="isc-header__surtitle-sep" aria-hidden="true">/</span>
+              <a href={TEACHERS_HREF} target="_blank" rel="noopener noreferrer">Enseignant·es</a>
+            </>
+          }
+          title="ISC Grade Mailer"
+          hubHref={HUB_HREF}
+          tooltipBackToHub="ISC Hub"
+          logoLight={LOGO_BLACK}
+          logoDark={LOGO_WHITE}
+          dark={dark}
+          meta={
+            <button
+              type="button"
+              className="isc-fab"
+              onClick={toggleDark}
+              data-tooltip={dark ? "Mode clair" : "Mode sombre"}
+              aria-label={dark ? "Mode clair" : "Mode sombre"}
+            >
+              {dark ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              )}
+            </button>
+          }
+        />
       </div>
 
       {view === "edit" ? (
