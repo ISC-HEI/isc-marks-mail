@@ -7,7 +7,7 @@ const LOGO_WHITE = "./ISC_Logo_V3_-_white.svg";
 /* Petal accent — Enseignant·es (this is a teacher tool: paste grades → mail) */
 const ACCENT_LIGHT = "#a890c0";
 const ACCENT_DARK = "#7a6090";
-const HUB_HREF = "https://isc-hei.github.io/isc-hub/";
+const HUB_HREF = "https://hub.isc-vs.ch/";
 const TEACHERS_HREF = HUB_HREF + "#/enseignant-es"; // hub's enseignant·es audience page
 
 /* ── table columns — genre first, optional ─────────────────── */
