@@ -59,17 +59,35 @@ function civilite(g) {
 }
 
 function fill(tpl, s, mod) {
+  // Function replacers: a "$" in a value must not be read as a replacement pattern.
   return tpl
-    .replace(/\{prenom\}/gi, s.prenom)
-    .replace(/\{nom\}/gi, s.nom)
-    .replace(/\{email\}/gi, s.email)
-    .replace(/\{note\}/gi, s.note)
-    .replace(/\{module\}/gi, mod)
-    .replace(/\{civilite\}/gi, civilite(s.genre));
+    .replace(/\{prenom\}/gi, () => s.prenom)
+    .replace(/\{nom\}/gi, () => s.nom)
+    .replace(/\{email\}/gi, () => cleanEmail(s.email))
+    .replace(/\{note\}/gi, () => s.note)
+    .replace(/\{module\}/gi, () => mod)
+    .replace(/\{civilite\}/gi, () => civilite(s.genre));
 }
 
+// Excel / Outlook copies often carry invisible characters, a "mailto:" prefix
+// or a "Name <address>" form. Normalise to the bare address.
+function cleanEmail(raw) {
+  let e = (raw || "").replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "").trim();
+  const angle = e.match(/<([^<>]+)>/);
+  if (angle) e = angle[1].trim();
+  return e.replace(/^mailto:/i, "").replace(/[;,]+$/, "").trim();
+}
+
+const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
+
 function hasEmail(r) {
-  return r.email && r.email.includes("@");
+  return EMAIL_RE.test(cleanEmail(r.email));
+}
+
+function mailtoHref(student, subject, body, mod) {
+  // Keep "@" literal: several mail clients do not decode "%40" in the recipient.
+  const to = encodeURIComponent(cleanEmail(student.email)).replace(/%40/g, "@");
+  return `mailto:${to}?subject=${encodeURIComponent(fill(subject, student, mod))}&body=${encodeURIComponent(fill(body, student, mod))}`;
 }
 function hasNote(r) {
   return r.note.trim() !== "";
@@ -456,7 +474,7 @@ function SendRow({ student, subject, body, module, onSent }) {
   const [open, setOpen] = useState(false);
   const fs = fill(subject, student, module);
   const fb = fill(body, student, module);
-  const mailto = `mailto:${encodeURIComponent(student.email)}?subject=${encodeURIComponent(fs)}&body=${encodeURIComponent(fb)}`;
+  const mailto = mailtoHref(student, subject, body, module);
 
   return (
     <div
@@ -609,6 +627,11 @@ export default function App() {
     () => withEmail.filter((r) => !hasNote(r)),
     [withEmail]
   );
+  // Rows with data but no usable address: they would otherwise be skipped silently.
+  const badEmail = useMemo(
+    () => rows.filter((r) => !isEmpty(r) && !hasEmail(r)),
+    [rows]
+  );
 
   const tryGo = () => {
     // Vérifie si le module est vide avant de continuer
@@ -649,22 +672,51 @@ export default function App() {
     [sendList]
   );
 
+  const bulkTimer = useRef(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkBlocked, setBulkBlocked] = useState(null);
+
+  const stopBulk = useCallback(() => {
+    clearTimeout(bulkTimer.current);
+    bulkTimer.current = null;
+    setBulkRunning(false);
+  }, []);
+  useEffect(() => () => clearTimeout(bulkTimer.current), []);
+
   const bulkSend = () => {
-    setShowPopupHelp(true);
-    pending.forEach((s, i) => {
+    if (bulkRunning) return;
+    const queue = pending.map((s) => ({ s, idx: sendList.indexOf(s) }));
+    setBulkBlocked(null);
+    setBulkRunning(true);
+
+    const step = (i) => {
+      if (i >= queue.length) return stopBulk();
+      const { s, idx } = queue[i];
+      // window.open (unlike a synthetic anchor click) tells us when the browser
+      // blocked the mail: only mark as sent what was really opened.
+      let w = null;
+      try {
+        w = window.open(mailtoHref(s, subject, body, module), "_blank");
+      } catch {
+        w = null;
+      }
+      if (!w) {
+        setBulkBlocked({ done: i, total: queue.length });
+        setShowPopupHelp(true);
+        return stopBulk();
+      }
+      // Desktop mail client: the helper tab stays blank, close it.
       setTimeout(() => {
-        const fs = fill(subject, s, module);
-        const fb = fill(body, s, module);
-        
-        // Triggers anchor element clicks to open emails sequentially
-        const a = document.createElement('a');
-        a.href = `mailto:${encodeURIComponent(s.email)}?subject=${encodeURIComponent(fs)}&body=${encodeURIComponent(fb)}`;
-        a.target = '_blank';
-        a.click();
-        
-        markSent(sendList.indexOf(s));
-      }, i * 2000); // Trigger an email open every 2 seconds
-    });
+        try {
+          if (!w.closed && w.location.href === "about:blank") w.close();
+        } catch {
+          /* webmail compose page (cross-origin): leave it open */
+        }
+      }, 1500);
+      markSent(idx);
+      bulkTimer.current = setTimeout(() => step(i + 1), 2000);
+    };
+    step(0);
   };
 
   const theme = dark ? darkTheme : lightTheme;
@@ -883,6 +935,33 @@ export default function App() {
               )}
             </span>
           </div>
+          {badEmail.length > 0 && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: "8px 12px",
+                background: "var(--warn-bg)",
+                color: "var(--warn-fg)",
+                border: "1px solid var(--warn-fg)",
+                borderRadius: 6,
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              <b>
+                ⚠ {badEmail.length} ligne{badEmail.length > 1 ? "s" : ""} sans
+                adresse email valide — elle{badEmail.length > 1 ? "s" : ""} ne
+                recevr{badEmail.length > 1 ? "ont" : "a"} rien :
+              </b>
+              {badEmail.map((r, i) => (
+                <div key={i}>
+                  {[r.prenom, r.nom].filter(Boolean).join(" ") || "(sans nom)"}
+                  {" — "}
+                  {r.email ? `« ${r.email} »` : "email manquant"}
+                </div>
+              ))}
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -903,6 +982,11 @@ export default function App() {
               <span style={{ fontSize: 20, lineHeight: 1 }}>💡</span>
               <div style={{ flex: 1, lineHeight: 1.5 }}>
                 <b style={{ display: "block", marginBottom: 2 }}>Note sur l'envoi groupé</b>
+                {bulkBlocked && (
+                  <b style={{ display: "block", marginBottom: 4 }}>
+                    Envoi interrompu : {bulkBlocked.done} email{bulkBlocked.done > 1 ? "s" : ""} ouvert{bulkBlocked.done > 1 ? "s" : ""} sur {bulkBlocked.total}, les suivants ont été bloqués par le navigateur et restent à envoyer.
+                  </b>
+                )}
                 Si un seul email s'ouvre, votre navigateur bloque probablement les suivants. 
                 Regardez l'extrémité droite de la barre d'adresse (en haut du navigateur) : 
                 cliquez sur l'icône de pop-up bloqué 🚫 et sélectionnez <b>"Toujours autoriser..."</b>.
@@ -936,13 +1020,25 @@ export default function App() {
             }}
           >
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setView("edit")} style={secondaryBtn}>
+              <button
+                onClick={() => {
+                  stopBulk();
+                  setView("edit");
+                }}
+                style={secondaryBtn}
+              >
                 ← Modifier
               </button>
-              {pending.length > 0 && (
-                <button onClick={bulkSend} style={primaryBtn}>
-                  ✉ Envoyer tout ({pending.length})
+              {bulkRunning ? (
+                <button onClick={stopBulk} style={secondaryBtn}>
+                  ■ Arrêter ({pending.length} restant{pending.length > 1 ? "s" : ""})
                 </button>
+              ) : (
+                pending.length > 0 && (
+                  <button onClick={bulkSend} style={primaryBtn}>
+                    ✉ Envoyer tout ({pending.length})
+                  </button>
+                )
               )}
             </div>
             <div style={{ fontSize: 12, color: "var(--muted)" }}>
