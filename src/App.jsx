@@ -1120,7 +1120,8 @@ export default function App() {
         — mui 2026
         <br />
         <span style={{ fontSize: 10, opacity: 0.6 }}>
-          v54a3a5e · 30.03.2026
+          v{__APP_VERSION__}
+          {__APP_DATE__ && ` · ${__APP_DATE__}`}
         </span>
       </div>
     </div>
